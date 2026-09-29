@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Signal Copilot</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">S</div>
+          <div>
+            <strong>Signal</strong>
+            <span>AI product workspace</span>
+          </div>
+        </div>
+
+        <button class="new-run" id="new-run" type="button">New research run</button>
+
+        <nav class="nav-list" aria-label="Workspace">
+          <button class="nav-item active" type="button" data-view="workspace">Workspace</button>
+          <button class="nav-item" type="button" data-view="knowledge">Knowledge</button>
+          <button class="nav-item" type="button" data-view="workflows">Workflows</button>
+          <button class="nav-item" type="button" data-view="evaluations">Evaluations</button>
+        </nav>
+
+        <section class="sidebar-section">
+          <p class="eyebrow">RECENT RUNS</p>
+          <button class="run-link active" type="button">Investment research assistant <span>Now</span></button>
+          <button class="run-link" type="button">Local runtime validation <span>14m</span></button>
+          <button class="run-link" type="button">Release readiness review <span>1h</span></button>
+        </section>
+
+        <div class="device-link">
+          <img src="/assets/mobile-qr.png" alt="QR code for mobile test build" />
+          <div>
+            <strong>Mobile test build</strong>
+            <span>Android companion</span>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workspace" id="workspace-view">
+        <header class="topbar">
+          <div class="crumbs"><span>Products</span><b>Investment research assistant</b></div>
+          <div class="topbar-actions">
+            <span class="health"><i></i><span id="health-label">Services ready</span></span>
+            <button class="plain-button" id="export-run" type="button">Export run</button>
+            <div class="user-avatar" title="Project owner">CC</div>
+          </div>
+        </header>
+
+        <div class="workspace-grid">
+          <section class="conversation">
+            <div class="conversation-head">
+              <div>
+                <p class="eyebrow">EVIDENCE FIRST</p>
+                <h1>Investment research assistant</h1>
+                <p class="muted">One chat contract, provider-neutral tools, inspectable evidence.</p>
+              </div>
+              <div class="model-switch" role="group" aria-label="Runtime selection">
+                <button class="mode active" type="button" data-mode="cloud">Cloud</button>
+                <button class="mode" type="button" data-mode="local">On-device</button>
+              </div>
+            </div>
+
+            <div class="thread" id="thread" aria-live="polite">
+              <article class="message assistant-message">
+                <div class="assistant-avatar" aria-label="Signal assistant">S</div>
+                <div class="message-body">
+                  <div class="message-meta"><strong>Signal</strong><span>Just now</span></div>
+                  <p>I am ready to inspect your product question, retrieve the most relevant workspace notes, and return an answer with traceable evidence.</p>
+                  <div class="starter-prompts">
+                    <button type="button" class="prompt-chip">How should cloud and MNN-style local inference share one contract?</button>
+                    <button type="button" class="prompt-chip">What must be tested before shipping mobile AI streaming?</button>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <form class="composer" id="composer">
+              <label class="sr-only" for="query">Ask a product or engineering question</label>
+              <textarea id="query" rows="2" placeholder="Ask about product architecture, mobile inference, or release quality..."></textarea>
+              <div class="composer-footer">
+                <span>Evidence mode is on</span>
+                <button class="run-button" type="submit">Run</button>
+              </div>
+            </form>
+          </section>
+
+          <aside class="context-rail">
+            <section class="rail-section">
+              <div class="rail-heading"><p class="eyebrow">RUN TRACE</p><span id="run-id">Waiting</span></div>
+              <ol class="trace-list" id="trace-list">
+                <li class="complete"><span>1</span><div><strong>Retrieve</strong><small>Search workspace notes</small></div></li>
+                <li class="complete"><span>2</span><div><strong>Rerank</strong><small>Score evidence for relevance</small></div></li>
+                <li><span>3</span><div><strong>Tool plan</strong><small>Prepare provider-neutral actions</small></div></li>
+                <li><span>4</span><div><strong>Respond</strong><small>Compose cited answer</small></div></li>
+              </ol>
+            </section>
+
+            <section class="rail-section evidence-section">
+              <div class="rail-heading"><p class="eyebrow">RETRIEVED EVIDENCE</p><button class="plain-button" type="button" id="add-note">Add note</button></div>
+              <div id="evidence-list" class="evidence-list"></div>
+            </section>
+
+            <section class="rail-section runtime-section">
+              <p class="eyebrow">RUNTIME</p>
+              <div class="runtime-row"><span>Adapter</span><strong id="runtime-label">Cloud provider</strong></div>
+              <div class="runtime-row"><span>TTFT</span><strong>186 ms</strong></div>
+              <div class="runtime-row"><span>Context</span><strong>3 notes</strong></div>
+            </section>
+          </aside>
+        </div>
+      </section>
+
+      <section class="empty-view" id="empty-view" hidden>
+        <p class="eyebrow">SIGNAL COPILOT</p>
+        <h2 id="empty-title">Knowledge</h2>
+        <p id="empty-copy">Browse workspace notes and add product context for the next retrieval run.</p>
+        <button class="run-button" id="return-workspace" type="button">Return to workspace</button>
+      </section>
+    </main>
+
+    <dialog id="note-dialog">
+      <form method="dialog" id="note-form">
+        <div class="dialog-heading"><div><p class="eyebrow">KNOWLEDGE</p><h2>Add workspace note</h2></div><button class="icon-button" value="cancel" aria-label="Close">x</button></div>
+        <label>Title<input id="note-title" required maxlength="80" placeholder="e.g. Local runtime rollout" /></label>
+        <label>Evidence<input id="note-excerpt" required maxlength="240" placeholder="Write a fact the assistant can cite..." /></label>
+        <label>Tags<input id="note-tags" placeholder="android, mnn, release" /></label>
+        <div class="dialog-actions"><button class="plain-button" value="cancel">Cancel</button><button class="run-button" value="default" type="submit">Save note</button></div>
+      </form>
+    </dialog>
+
+    <template id="evidence-template">
+      <article class="evidence-card">
+        <div class="evidence-type"></div>
+        <strong></strong>
+        <p></p>
+        <span class="evidence-score"></span>
+      </article>
+    </template>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
