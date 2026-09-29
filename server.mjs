@@ -55,16 +55,63 @@ function bestMatches(query) {
     .slice(0, 3);
 }
 
+function normalizeQuery(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+
+  // Let users paste the API payload during demos without polluting the conversation.
+  try {
+    const parsed = JSON.parse(text);
+    if (parsed && typeof parsed.query === "string") return parsed.query.trim();
+  } catch {
+    // A normal conversational question is not JSON.
+  }
+  return text;
+}
+
 function answerFor(query, docs, mode) {
   const topic = query.trim() || "the current request";
   const localMode = mode === "local";
-  return {
-    answer: `I treated "${topic}" as a product-and-engineering question. The recommended path is to retrieve product evidence first, then keep the chat, citations, and model provider behind one contract. ${localMode ? "This run is configured for the local runtime adapter, so the same workflow can fall back on-device." : "This run is configured for the cloud provider adapter, with the same response envelope available to the mobile client."}`,
-    followUps: [
-      "Show the evidence before generating the final recommendation.",
+  const normalized = topic.toLowerCase();
+  const isSwitching = /switch|cloud|local|on-device|端侧|云端|切换|离线/.test(normalized);
+  const isRelease = /release|quality|test|publish|发布|质量|测试|验收/.test(normalized);
+  const isRag = /rag|retriev|citation|evidence|知识库|引用|检索/.test(normalized);
+
+  let answer;
+  let followUps;
+  if (isSwitching) {
+    answer = `For "${topic}", use one provider-neutral request and response contract. Route to cloud by default when the network and policy allow it; select the local runtime for offline use, privacy-sensitive work, or degraded-network fallback. Keep the selected runtime in request metadata rather than in the chat content, so Android and iOS render the same conversation and citations.`;
+    followUps = [
+      "Persist the preferred runtime and expose a per-request override.",
+      "Return the active runtime, latency, and fallback reason in the response metadata.",
+      "Test network loss during generation and resume from the shared message contract.",
+    ];
+  } else if (isRelease) {
+    answer = `For "${topic}", treat model delivery as a mobile release concern. Validate first-run model download, storage limits, cancellation, offline recovery, token streaming, and source rendering. Instrument the runtime path so the team can compare cloud and local failure rates before rolling out.`;
+    followUps = [
+      "Use staged rollout and capture runtime-specific crash and timeout telemetry.",
+      "Add deterministic acceptance tests for citations and interrupted streams.",
+      "Verify that the app stays useful when model download is unavailable.",
+    ];
+  } else if (isRag) {
+    answer = `For "${topic}", retrieve and rank workspace evidence before generation, then attach each cited source to the final answer. Keep retrieval, generation, and rendering separate so the same API can support cloud models today and an on-device runtime later.`;
+    followUps = [
+      "Return source IDs, excerpts, and scores as structured fields.",
+      "Require the client to render citations before a user acts on a recommendation.",
+      "Log retrieval misses separately from generation quality issues.",
+    ];
+  } else {
+    answer = `For "${topic}", start with a provider-neutral mobile AI contract: retrieve relevant workspace evidence, generate against those sources, and return a consistent response envelope to Android and iOS. The active ${localMode ? "local" : "cloud"} adapter can then change without changing the product workflow.`;
+    followUps = [
+      "Show evidence before generating the final recommendation.",
       "Keep provider selection outside the UI message schema.",
       "Emit token and tool events so Android and iOS can render one streaming experience.",
-    ],
+    ];
+  }
+
+  return {
+    answer: `${answer} This run is using the ${localMode ? "local runtime adapter" : "cloud provider adapter"}.`,
+    followUps,
     citations: docs.map((doc) => ({ id: doc.id, title: doc.title, excerpt: doc.excerpt })),
   };
 }
@@ -93,11 +140,12 @@ const server = createServer(async (req, res) => {
   if (req.method === "POST" && url.pathname === "/api/chat") {
     try {
       const { query, mode = "cloud" } = await bodyOf(req);
-      const docs = bestMatches(String(query || ""));
+      const normalizedQuery = normalizeQuery(query);
+      const docs = bestMatches(normalizedQuery);
       return send(res, 200, {
         runId: `run_${Date.now().toString(36)}`,
         retrieval: docs.map(({ id, title, score }) => ({ id, title, score })),
-        ...answerFor(String(query || ""), docs, mode),
+        ...answerFor(normalizedQuery, docs, mode),
       });
     } catch {
       return send(res, 400, { error: "Expected JSON with a query field." });
