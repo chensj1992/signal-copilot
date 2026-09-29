@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node server.mjs",
-    "start": "node server.mjs"
+    "dev": "node --env-file-if-exists=.env server.mjs",
+    "start": "node --env-file-if-exists=.env server.mjs"
   },
   "description": "A single-repository AI-native workspace demo with retrieval, workflows, and local-runtime controls."
 }

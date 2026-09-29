@@ -1,4 +1,4 @@
-const state = { mode: "cloud", evidence: [] };
+const state = { mode: "cloud", evidence: [], mnnConfigured: false, mnnModel: "MNN" };
 
 const thread = document.querySelector("#thread");
 const query = document.querySelector("#query");
@@ -30,6 +30,14 @@ function setTrace(stage = 0) {
   [...traceList.children].forEach((item, index) => item.classList.toggle("complete", index <= stage));
 }
 
+function updateRuntimeLabel() {
+  if (state.mode === "cloud") {
+    runtimeLabel.textContent = "Demo cloud adapter";
+    return;
+  }
+  runtimeLabel.textContent = state.mnnConfigured ? `MNN: ${state.mnnModel}` : "MNN endpoint required";
+}
+
 function appendUserMessage(text) {
   const article = document.createElement("article");
   article.className = "message user-message";
@@ -43,7 +51,7 @@ function appendAssistantMessage(response) {
   article.innerHTML = `
     <div class="assistant-avatar" aria-label="Signal assistant">S</div>
     <div class="message-body">
-      <div class="message-meta"><strong>Signal</strong><span>Run complete</span></div>
+      <div class="message-meta"><strong>Signal</strong><span>${escapeHtml(response.runtime?.label || "Run complete")}</span></div>
       <p>${escapeHtml(response.answer)}</p>
       <ul class="answer-points">${response.followUps.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}</ul>
       <div class="citation-row">${response.citations.map((citation) => `<span class="citation">Source: ${escapeHtml(citation.title)}</span>`).join("")}</div>
@@ -70,17 +78,17 @@ async function runQuery(text) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ query: text, mode: state.mode }),
     });
-    if (!response.ok) throw new Error("Request failed");
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || "Request failed");
     pending.remove();
     state.evidence = data.citations.map((citation, index) => ({ ...citation, score: data.retrieval[index]?.score || 1 }));
     renderEvidence(state.evidence);
     setTrace(3);
     runId.textContent = data.runId;
     appendAssistantMessage(data);
-  } catch {
-    pending.querySelector("p").textContent = "The local demo server is unavailable. Start the project with npm run dev and try again.";
-    pending.querySelector(".message-meta span").textContent = "Connection needed";
+  } catch (error) {
+    pending.querySelector("p").textContent = error.message || "The local demo server is unavailable. Start the project with npm run dev and try again.";
+    pending.querySelector(".message-meta span").textContent = "Runtime unavailable";
   }
 }
 
@@ -88,7 +96,7 @@ document.querySelectorAll(".mode").forEach((button) => {
   button.addEventListener("click", () => {
     state.mode = button.dataset.mode;
     document.querySelectorAll(".mode").forEach((item) => item.classList.toggle("active", item === button));
-    runtimeLabel.textContent = state.mode === "local" ? "Local runtime" : "Cloud provider";
+    updateRuntimeLabel();
   });
 });
 
@@ -152,6 +160,15 @@ document.querySelector("#return-workspace").addEventListener("click", () => docu
 fetch("/api/knowledge").then((response) => response.json()).then(({ items }) => {
   state.evidence = items.map((item) => ({ ...item, score: 1 }));
   renderEvidence(state.evidence);
+}).catch(() => {
+  document.querySelector("#health-label").textContent = "Start local server";
+});
+
+fetch("/api/health").then((response) => response.json()).then(({ localRuntime }) => {
+  state.mnnConfigured = Boolean(localRuntime?.configured);
+  state.mnnModel = localRuntime?.model || "MNN";
+  updateRuntimeLabel();
+  if (!state.mnnConfigured) document.querySelector("#health-label").textContent = "MNN endpoint not configured";
 }).catch(() => {
   document.querySelector("#health-label").textContent = "Start local server";
 });
